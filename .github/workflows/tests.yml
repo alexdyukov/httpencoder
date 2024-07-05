@@ -1,0 +1,17 @@
+name: tests
+on: push
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install golang
+        uses: actions/setup-go@v5
+        with:
+          go-version: 'oldstable'
+          check-latest: true
+      - name: Checkout git repository
+        uses: actions/checkout@v4
+      - name: Run tests
+        run: go test ./... -race -parallel 2 -shuffle on -v
+        env:
+          CGO_ENABLED: 1
