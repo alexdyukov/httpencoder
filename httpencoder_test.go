@@ -55,11 +55,15 @@ var (
 
 		reversed := reverse(bodyRaw)
 
-		responseWriter.WriteHeader(returnedStatusCode)
-
 		if strings.Contains(request.Header.Get("Accept-Encoding"), "repeate") {
+			responseWriter.Header().Set("Content-Encoding", "repeate")
+
+			responseWriter.WriteHeader(returnedStatusCode)
+
 			err = repeaterEntity.Encode(request.Context(), responseWriter, reversed)
 		} else {
+			responseWriter.WriteHeader(returnedStatusCode)
+
 			err = copierEntity.Encode(request.Context(), responseWriter, reversed)
 		}
 
@@ -76,71 +80,96 @@ var (
 	repeater2Entity = repeater2("")
 
 	tests = []struct {
-		encoder         httpencoder.Encoder
-		decoder         httpencoder.Decoder
-		name            string
-		contentEncoding string
-		acceptEncoding  string
-		statusCode      int
+		requestEncoder                httpencoder.Encoder
+		responseDecoder               httpencoder.Decoder
+		upstreamHandler               http.HandlerFunc
+		testName                      string
+		requestContentEncodingHeader  string
+		requestAcceptEncodingHeader   string
+		responseContentEncodingHeader string
+		responseStatusCode            int
 	}{
 		{
-			name:            "vanilla request vanilla response",
-			encoder:         copierEntity,
-			decoder:         copierEntity,
-			contentEncoding: "",
-			acceptEncoding:  "",
-			statusCode:      returnedStatusCode,
+			testName:                      "vanilla request vanilla response",
+			requestEncoder:                copierEntity,
+			requestContentEncodingHeader:  "",
+			requestAcceptEncodingHeader:   "",
+			responseDecoder:               copierEntity,
+			responseContentEncodingHeader: "",
+			responseStatusCode:            returnedStatusCode,
+			upstreamHandler:               handlerWithoutEncoding,
 		}, {
-			name:            "vanilla request encode response",
-			encoder:         copierEntity,
-			decoder:         repeaterEntity,
-			contentEncoding: "",
-			acceptEncoding:  "repeate",
-			statusCode:      returnedStatusCode,
+			testName:                      "vanilla request encode response",
+			requestEncoder:                copierEntity,
+			requestContentEncodingHeader:  "",
+			requestAcceptEncodingHeader:   "repeate",
+			responseDecoder:               repeaterEntity,
+			responseContentEncodingHeader: "repeate",
+			responseStatusCode:            returnedStatusCode,
+			upstreamHandler:               handlerWithoutEncoding,
 		}, {
-			name:            "encode request vanilla response",
-			encoder:         repeaterEntity,
-			decoder:         copierEntity,
-			contentEncoding: "repeate",
-			acceptEncoding:  "",
-			statusCode:      returnedStatusCode,
+			testName:                      "encode request vanilla response",
+			requestEncoder:                repeaterEntity,
+			requestContentEncodingHeader:  "repeate",
+			requestAcceptEncodingHeader:   "",
+			responseDecoder:               copierEntity,
+			responseContentEncodingHeader: "",
+			responseStatusCode:            returnedStatusCode,
+			upstreamHandler:               handlerWithoutEncoding,
 		}, {
-			name:            "encode request decode response",
-			encoder:         repeaterEntity,
-			decoder:         repeaterEntity,
-			contentEncoding: "repeate",
-			acceptEncoding:  "repeate",
-			statusCode:      returnedStatusCode,
+			testName:                      "encode request decode response",
+			requestEncoder:                repeaterEntity,
+			requestContentEncodingHeader:  "repeate",
+			requestAcceptEncodingHeader:   "repeate",
+			responseDecoder:               repeaterEntity,
+			responseContentEncodingHeader: "repeate",
+			responseStatusCode:            returnedStatusCode,
+			upstreamHandler:               handlerWithoutEncoding,
 		}, {
-			name:            "double encode request decode response capitalized",
-			encoder:         repeater2Entity,
-			decoder:         repeaterEntity,
-			contentEncoding: "Repeate, Repeate",
-			acceptEncoding:  "Repeate,,repeate",
-			statusCode:      returnedStatusCode,
+			testName:                      "double encode request decode response capitalized",
+			requestEncoder:                repeater2Entity,
+			requestContentEncodingHeader:  "Repeate, Repeate ",
+			requestAcceptEncodingHeader:   "Repeate,,repeate ",
+			responseDecoder:               repeaterEntity,
+			responseContentEncodingHeader: "repeate",
+			responseStatusCode:            returnedStatusCode,
+			upstreamHandler:               handlerWithoutEncoding,
 		}, {
-			name:            "vanilla request complex accept encode type 1",
-			encoder:         copierEntity,
-			decoder:         repeaterEntity,
-			contentEncoding: "",
-			acceptEncoding:  "repeate2, repeate;q=1.0, *;q=0.1",
-			statusCode:      returnedStatusCode,
+			testName:                      "vanilla request complex accept encode type 1",
+			requestEncoder:                copierEntity,
+			requestContentEncodingHeader:  " ",
+			requestAcceptEncodingHeader:   "repeate2, repeate;q=1.0, *;q=0.1",
+			responseDecoder:               repeaterEntity,
+			responseContentEncodingHeader: "repeate",
+			responseStatusCode:            returnedStatusCode,
+			upstreamHandler:               handlerWithoutEncoding,
 		}, {
-			name:            "vanilla request complex accept encode type 2",
-			encoder:         copierEntity,
-			decoder:         repeaterEntity,
-			contentEncoding: "",
-			acceptEncoding:  "repeate;q=1.0, repeate2;q=0.8, *;q=0.1",
-			statusCode:      returnedStatusCode,
+			testName:                      "vanilla request complex accept encode type 2",
+			requestEncoder:                copierEntity,
+			requestContentEncodingHeader:  " ",
+			requestAcceptEncodingHeader:   "repeate;q=1.0, repeate2;q=0.8, *;q=0.1",
+			responseDecoder:               repeaterEntity,
+			responseContentEncodingHeader: "repeate",
+			responseStatusCode:            returnedStatusCode,
+			upstreamHandler:               handlerWithoutEncoding,
+		}, {
+			testName:                      "vanilla request donothing response",
+			requestEncoder:                copierEntity,
+			requestContentEncodingHeader:  "",
+			requestAcceptEncodingHeader:   "repeate",
+			responseDecoder:               repeaterEntity,
+			responseContentEncodingHeader: "repeate",
+			responseStatusCode:            returnedStatusCode,
+			upstreamHandler:               handlerWithIfedEncoding,
 		},
 	}
 )
 
 func (repeater) String() string {
-	return "repeater"
+	return "repeater implementation"
 }
 
-func (repeater) Encode(ctx context.Context, to io.Writer, from []byte) error {
+func (repeater) Encode(_ context.Context, to io.Writer, from []byte) error {
 	for i := 0; i < len(from); i++ {
 		for j := 0; j < 2; j++ {
 			if _, err := to.Write(from[i : i+1]); err != nil {
@@ -152,7 +181,7 @@ func (repeater) Encode(ctx context.Context, to io.Writer, from []byte) error {
 	return nil
 }
 
-func (repeater) Decode(ctx context.Context, to io.Writer, from []byte) error {
+func (repeater) Decode(_ context.Context, to io.Writer, from []byte) error {
 	for i := 0; i < len(from); i += 2 {
 		if _, err := to.Write(from[i : i+1]); err != nil {
 			return fmt.Errorf("%w", err)
@@ -163,10 +192,10 @@ func (repeater) Decode(ctx context.Context, to io.Writer, from []byte) error {
 }
 
 func (repeater2) String() string {
-	return "repeater" // repeater, repeater used to be in content-Encoding field
+	return "repeater2 implementation"
 }
 
-func (repeater2) Encode(ctx context.Context, to io.Writer, from []byte) error {
+func (repeater2) Encode(_ context.Context, to io.Writer, from []byte) error {
 	for i := 0; i < len(from); i++ {
 		for j := 0; j < 4; j++ {
 			if _, err := to.Write(from[i : i+1]); err != nil {
@@ -179,7 +208,7 @@ func (repeater2) Encode(ctx context.Context, to io.Writer, from []byte) error {
 }
 
 func (copier) String() string {
-	return ""
+	return "copier implementation"
 }
 
 func (copier) Encode(_ context.Context, to io.Writer, from []byte) error {
@@ -211,24 +240,24 @@ func TestNew(upperTest *testing.T) {
 
 	compress := httpencoder.New(encoders, decoders)
 
-	netHTTPHandler := compress(handlerWithoutEncoding)
-
 	for _, test := range tests {
 		test := test
-		upperTest.Run(test.name, func(t *testing.T) {
+		upperTest.Run(test.testName, func(t *testing.T) {
 			t.Parallel()
+
+			netHTTPHandler := compress(test.upstreamHandler)
 
 			buffer := &bytes.Buffer{}
 
-			err := test.encoder.Encode(context.Background(), buffer, []byte(testString))
+			err := test.requestEncoder.Encode(context.Background(), buffer, []byte(testString))
 			if err != nil {
 				t.Fatal("cannot Compress test body: " + err.Error())
 			}
 
 			recorder := httptest.NewRecorder()
 			request := httptest.NewRequest(http.MethodPost, "/", buffer)
-			request.Header.Set("Content-Encoding", test.contentEncoding)
-			request.Header.Set("Accept-Encoding", test.acceptEncoding)
+			request.Header.Set("Content-Encoding", test.requestContentEncodingHeader)
+			request.Header.Set("Accept-Encoding", test.requestAcceptEncodingHeader)
 
 			netHTTPHandler.ServeHTTP(recorder, request)
 
@@ -239,9 +268,9 @@ func TestNew(upperTest *testing.T) {
 				t.Fatalf("unexpected response status code, want %d but got %d", returnedStatusCode, response.StatusCode)
 			}
 
-			if response.Header.Get("Content-Encoding") != fmt.Sprint(test.decoder) {
+			if response.Header.Get("Content-Encoding") != test.responseContentEncodingHeader {
 				strFormat := "invalid Content-Encoding header in response, want %s but got %s"
-				t.Fatalf(strFormat, test.encoder.String(), response.Header.Get("Content-Encoding"))
+				t.Fatalf(strFormat, test.responseContentEncodingHeader, response.Header.Get("Content-Encoding"))
 			}
 
 			buffer.Reset()
@@ -253,7 +282,7 @@ func TestNew(upperTest *testing.T) {
 
 			cleanedResponseBody := &bytes.Buffer{}
 
-			err = test.decoder.Decode(context.Background(), cleanedResponseBody, buffer.Bytes())
+			err = test.responseDecoder.Decode(context.Background(), cleanedResponseBody, buffer.Bytes())
 			if err != nil {
 				t.Fatal("cannot Decompress test body with error: " + err.Error())
 			}

@@ -21,20 +21,21 @@ func (responseWriter *wrappedWriter) WriteHeader(statusCode int) {
 	*(responseWriter.statusCode) = statusCode
 }
 
-func encode(bufferPool *sync.Pool, encoders map[string]Encoder, next http.Handler) http.Handler {
-	if len(encoders) == 0 {
-		return next
-	}
+// wrappedWriter doesnt support Flush method
+// because its hard to implement Encoder with partial responses.
+// func (*wrappedWriter) Flush() {
+// }
 
+func encode(bufferPool *sync.Pool, encoders map[string]Encoder, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
 		header := compactAndLow([]byte(request.Header.Get("Accept-Encoding")))
-		if len(header) == 0 {
+		if len(header) == 0 || request.Header.Get("Upgrade") != "" {
 			next.ServeHTTP(responseWriter, request)
 
 			return
 		}
 
-		encoder, okay := getEncode(header, encoders)
+		encoder, encodingType, okay := getPreferedEncoder(header, encoders)
 		if !okay {
 			next.ServeHTTP(responseWriter, request)
 
@@ -54,11 +55,21 @@ func encode(bufferPool *sync.Pool, encoders map[string]Encoder, next http.Handle
 
 		upstreamResponseBody := upstreamResponse.Bytes()
 
+		if responseWriter.Header().Get("Content-Encoding") != "" { // already encoded
+			responseWriter.WriteHeader(statusCode)
+
+			if _, err := responseWriter.Write(upstreamResponseBody); err != nil {
+				http.Error(responseWriter, err.Error(), http.StatusInternalServerError)
+			}
+
+			return
+		}
+
 		if responseWriter.Header().Get("Content-Type") == "" {
 			responseWriter.Header().Set("Content-Type", http.DetectContentType(upstreamResponseBody))
 		}
 
-		responseWriter.Header().Set("Content-Encoding", encoder.String())
+		responseWriter.Header().Set("Content-Encoding", encodingType)
 		responseWriter.Header().Del("Content-Length")
 		responseWriter.WriteHeader(statusCode)
 
@@ -70,38 +81,36 @@ func encode(bufferPool *sync.Pool, encoders map[string]Encoder, next http.Handle
 	})
 }
 
-func getEncode(acceptEncodingHeader []byte, encoders map[string]Encoder) (Encoder, bool) {
+//nolint:ireturn // helper function
+func getPreferedEncoder(acceptEncodingHeader []byte, encoders map[string]Encoder) (Encoder, string, bool) {
 	var (
-		preferedEncodeFunc Encoder
-		preferedQuality    int
-		found              = false
-		encodingType       string
-		qualityValue       int
+		preferedEncodingFunc Encoder
+		preferedEncodingType string
+		preferedQuality      int
+		found                = false
+		encodingType         string
+		qualityValue         int
 	)
 
 	for pos := 0; pos < len(acceptEncodingHeader); pos++ {
-		encodingType, pos = getNextEncodingType(acceptEncodingHeader, pos)
+		encodingType, pos = getNextAcceptEncodingType(acceptEncodingHeader, pos)
 		qualityValue, pos = getNextQualityValue(acceptEncodingHeader, pos)
 
 		encoder, exist := encoders[encodingType]
 		if exist && preferedQuality < qualityValue {
 			preferedQuality = qualityValue
-			preferedEncodeFunc = encoder
-
+			preferedEncodingFunc = encoder
+			preferedEncodingType = encodingType
 			found = true
 		}
 	}
 
-	return preferedEncodeFunc, found
+	return preferedEncodingFunc, preferedEncodingType, found
 }
 
-func getNextEncodingType(header []byte, start int) (encodingType string, newPosition int) {
+func getNextAcceptEncodingType(header []byte, start int) (encodingType string, newPosition int) {
 	for start < len(header) && !isAlpha(header[start]) {
 		start++
-	}
-
-	if start >= len(header) {
-		return "", start
 	}
 
 	end := start

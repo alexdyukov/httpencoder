@@ -8,7 +8,7 @@ According to RFCs there is no 'Accept-Encoding' header at server side response. 
 
 ## Benchmarks
 
-There is a little overhead to compare to `if strings.Contains(request.Header.Get("Accept-Encoding"), "myencoding")`
+There is a little overhead to compare to `if strings.Contains(request.Header.Get("Accept-Encoding"), "myencoding")`:
 ```
 $ go test -bench=. -benchmem -benchtime=10000000x
 warning: GOPATH set to GOROOT (/home/user/go) has no effect
@@ -16,13 +16,13 @@ goos: linux
 goarch: amd64
 pkg: github.com/alexdyukov/httpencoder
 cpu: AMD Ryzen 7 8845H w/ Radeon 780M Graphics
-BenchmarkRaw-16                         10000000               226.3 ns/op           720 B/op          5 allocs/op
-BenchmarkRawEncode-16                   10000000               251.3 ns/op           720 B/op          5 allocs/op
-BenchmarkWrappedEncodeDecode-16         10000000               905.7 ns/op          1537 B/op         13 allocs/op
-BenchmarkWrappedDecode-16               10000000               252.2 ns/op           720 B/op          5 allocs/op
-BenchmarkWrappedEncode-16               10000000               876.4 ns/op          1537 B/op         13 allocs/op
+BenchmarkRaw-16                         10000000               200.7 ns/op           720 B/op          5 allocs/op
+BenchmarkIfedEncode-16                  10000000               489.1 ns/op          1456 B/op          9 allocs/op
+BenchmarkWrappedEncodeDecode-16         10000000              1083 ns/op            1569 B/op         15 allocs/op
+BenchmarkWrappedDecode-16               10000000               391.4 ns/op           752 B/op          7 allocs/op
+BenchmarkWrappedEncode-16               10000000               917.2 ns/op          1537 B/op         13 allocs/op
 PASS
-ok      github.com/alexdyukov/httpencoder   25.135s
+ok      github.com/alexdyukov/httpencoder       30.844s
 ``` 
 
 ## Examples

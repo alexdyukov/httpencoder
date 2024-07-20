@@ -24,7 +24,7 @@ func BenchmarkRaw(b *testing.B) {
 	}
 }
 
-func BenchmarkRawEncode(b *testing.B) {
+func BenchmarkIfedEncode(b *testing.B) {
 	b.StopTimer()
 
 	body := bytes.NewBufferString("abcd")
@@ -46,7 +46,6 @@ func BenchmarkWrappedEncodeDecode(b *testing.B) {
 	body := bytes.NewBufferString("aabbccdd")
 	request := httptest.NewRequest(http.MethodPost, "/", body)
 	request.Header.Set("Accept-Encoding", "repeate")
-	request.Header.Set("Content-Encoding", "repeate")
 
 	encoders := map[string]httpencoder.Encoder{"repeate": repeaterEntity}
 	decoders := map[string]httpencoder.Decoder{"repeate": repeaterEntity}
@@ -56,6 +55,7 @@ func BenchmarkWrappedEncodeDecode(b *testing.B) {
 	b.StartTimer()
 
 	for i := 0; i < b.N; i++ {
+		request.Header.Set("Content-Encoding", "repeate")
 		handler.ServeHTTP(httptest.NewRecorder(), request)
 	}
 }
@@ -65,7 +65,6 @@ func BenchmarkWrappedDecode(b *testing.B) {
 
 	body := bytes.NewBufferString("aabbccdd")
 	request := httptest.NewRequest(http.MethodPost, "/", body)
-	request.Header.Set("Content-Encoding", "repeate")
 
 	encoders := map[string]httpencoder.Encoder{}
 	decoders := map[string]httpencoder.Decoder{"repeate": repeaterEntity}
@@ -75,6 +74,7 @@ func BenchmarkWrappedDecode(b *testing.B) {
 	b.StartTimer()
 
 	for i := 0; i < b.N; i++ {
+		request.Header.Set("Content-Encoding", "repeate")
 		handler.ServeHTTP(httptest.NewRecorder(), request)
 	}
 }
