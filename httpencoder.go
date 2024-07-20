@@ -13,8 +13,6 @@ type (
 	Encoder interface {
 		// Encode encodes http.ResponseWriter body.
 		Encode(ctx context.Context, to io.Writer, from []byte) error
-		// String used to be set Content-Encoding field.
-		String() string
 	}
 	// Decoder implements reader for http.Request body.
 	Decoder interface {
@@ -37,9 +35,15 @@ func New(encoders map[string]Encoder, decoders map[string]Decoder) func(next htt
 	}
 
 	return func(next http.Handler) http.Handler {
-		decodedHandler := decode(bufferPool, decoders, next)
+		if len(decoders) != 0 {
+			next = decode(bufferPool, decoders, next)
+		}
 
-		return encode(bufferPool, encoders, decodedHandler)
+		if len(encoders) != 0 {
+			next = encode(bufferPool, encoders, next)
+		}
+
+		return next
 	}
 }
 

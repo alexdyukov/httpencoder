@@ -7,10 +7,6 @@ import (
 )
 
 func decode(bufferPool *sync.Pool, decoders map[string]Decoder, next http.Handler) http.Handler {
-	if len(decoders) == 0 {
-		return next
-	}
-
 	return http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
 		header := compactAndLow([]byte(request.Header.Get("Content-Encoding")))
 		if len(header) == 0 {
