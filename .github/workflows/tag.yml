@@ -1,14 +1,16 @@
 name: tag
+
 on:
   push:
     branches:
     - master
+
 jobs:
   tag:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout git repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         fetch-depth: 0
     - name: Tag latest release on github

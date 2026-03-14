@@ -1,16 +1,21 @@
 name: tests
-on: push
+
+on:
+  push:
+  schedule:
+    - cron: '0 0 * * 0'
+
 jobs:
   tests:
     runs-on: ubuntu-latest
     steps:
-      - name: Install golang
-        uses: actions/setup-go@v5
-        with:
-          go-version: 'oldstable'
-          check-latest: true
       - name: Checkout git repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
+      - name: Install golang
+        uses: actions/setup-go@v6
+        with:
+          go-version: 'stable'
+          check-latest: true
       - name: Run tests
         run: go test ./... -race -parallel 2 -shuffle on -v
         env:

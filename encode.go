@@ -8,6 +8,7 @@ import (
 
 type wrappedWriter struct {
 	http.ResponseWriter
+
 	bufferedResponse *bytes.Buffer
 	statusCode       *int
 }
@@ -58,7 +59,8 @@ func encode(bufferPool *sync.Pool, encoders map[string]Encoder, next http.Handle
 		if responseWriter.Header().Get("Content-Encoding") != "" { // already encoded
 			responseWriter.WriteHeader(statusCode)
 
-			if _, err := responseWriter.Write(upstreamResponseBody); err != nil {
+			_, err := responseWriter.Write(upstreamResponseBody)
+			if err != nil {
 				http.Error(responseWriter, err.Error(), http.StatusInternalServerError)
 			}
 
@@ -73,7 +75,8 @@ func encode(bufferPool *sync.Pool, encoders map[string]Encoder, next http.Handle
 		responseWriter.Header().Del("Content-Length")
 		responseWriter.WriteHeader(statusCode)
 
-		if err := encoder.Encode(request.Context(), responseWriter, upstreamResponseBody); err != nil {
+		err := encoder.Encode(request.Context(), responseWriter, upstreamResponseBody)
+		if err != nil {
 			http.Error(responseWriter, err.Error(), http.StatusInternalServerError)
 
 			return

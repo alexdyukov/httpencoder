@@ -1,3 +1,5 @@
+// Package httpencoder provides net/http middleware for decode requests and
+// encode responses based on Accept-Encoding and Content-Encoding headers.
 package httpencoder
 
 import (

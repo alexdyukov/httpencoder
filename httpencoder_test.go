@@ -14,9 +14,9 @@ import (
 )
 
 type (
-	repeater  string
-	repeater2 string
-	copier    string
+	repeater  struct{}
+	repeater2 struct{}
+	copier    struct{}
 )
 
 const (
@@ -38,7 +38,7 @@ var (
 
 		responseWriter.WriteHeader(returnedStatusCode)
 
-		err = copierEntity.Encode(request.Context(), responseWriter, reversed)
+		err = (copier{}).Encode(request.Context(), responseWriter, reversed)
 		if err != nil {
 			http.Error(responseWriter, err.Error(), http.StatusInternalServerError)
 
@@ -60,11 +60,11 @@ var (
 
 			responseWriter.WriteHeader(returnedStatusCode)
 
-			err = repeaterEntity.Encode(request.Context(), responseWriter, reversed)
+			err = (repeater{}).Encode(request.Context(), responseWriter, reversed)
 		} else {
 			responseWriter.WriteHeader(returnedStatusCode)
 
-			err = copierEntity.Encode(request.Context(), responseWriter, reversed)
+			err = (copier{}).Encode(request.Context(), responseWriter, reversed)
 		}
 
 		if err != nil {
@@ -74,10 +74,7 @@ var (
 		}
 	})
 
-	RequestIDKey    = 1
-	copierEntity    = copier("")
-	repeaterEntity  = repeater("")
-	repeater2Entity = repeater2("")
+	RequestIDKey = 1
 
 	tests = []struct {
 		requestEncoder                httpencoder.Encoder
@@ -91,73 +88,73 @@ var (
 	}{
 		{
 			testName:                      "vanilla request vanilla response",
-			requestEncoder:                copierEntity,
+			requestEncoder:                copier{},
 			requestContentEncodingHeader:  "",
 			requestAcceptEncodingHeader:   "",
-			responseDecoder:               copierEntity,
+			responseDecoder:               copier{},
 			responseContentEncodingHeader: "",
 			responseStatusCode:            returnedStatusCode,
 			upstreamHandler:               handlerWithoutEncoding,
 		}, {
 			testName:                      "vanilla request encode response",
-			requestEncoder:                copierEntity,
+			requestEncoder:                copier{},
 			requestContentEncodingHeader:  "",
 			requestAcceptEncodingHeader:   "repeate",
-			responseDecoder:               repeaterEntity,
+			responseDecoder:               repeater{},
 			responseContentEncodingHeader: "repeate",
 			responseStatusCode:            returnedStatusCode,
 			upstreamHandler:               handlerWithoutEncoding,
 		}, {
 			testName:                      "encode request vanilla response",
-			requestEncoder:                repeaterEntity,
+			requestEncoder:                repeater{},
 			requestContentEncodingHeader:  "repeate",
 			requestAcceptEncodingHeader:   "",
-			responseDecoder:               copierEntity,
+			responseDecoder:               copier{},
 			responseContentEncodingHeader: "",
 			responseStatusCode:            returnedStatusCode,
 			upstreamHandler:               handlerWithoutEncoding,
 		}, {
 			testName:                      "encode request decode response",
-			requestEncoder:                repeaterEntity,
+			requestEncoder:                repeater{},
 			requestContentEncodingHeader:  "repeate",
 			requestAcceptEncodingHeader:   "repeate",
-			responseDecoder:               repeaterEntity,
+			responseDecoder:               repeater{},
 			responseContentEncodingHeader: "repeate",
 			responseStatusCode:            returnedStatusCode,
 			upstreamHandler:               handlerWithoutEncoding,
 		}, {
 			testName:                      "double encode request decode response capitalized",
-			requestEncoder:                repeater2Entity,
+			requestEncoder:                repeater2{},
 			requestContentEncodingHeader:  "Repeate, Repeate ",
 			requestAcceptEncodingHeader:   "Repeate,,repeate ",
-			responseDecoder:               repeaterEntity,
+			responseDecoder:               repeater{},
 			responseContentEncodingHeader: "repeate",
 			responseStatusCode:            returnedStatusCode,
 			upstreamHandler:               handlerWithoutEncoding,
 		}, {
 			testName:                      "vanilla request complex accept encode type 1",
-			requestEncoder:                copierEntity,
+			requestEncoder:                copier{},
 			requestContentEncodingHeader:  " ",
 			requestAcceptEncodingHeader:   "repeate2, repeate;q=1.0, *;q=0.1",
-			responseDecoder:               repeaterEntity,
+			responseDecoder:               repeater{},
 			responseContentEncodingHeader: "repeate",
 			responseStatusCode:            returnedStatusCode,
 			upstreamHandler:               handlerWithoutEncoding,
 		}, {
 			testName:                      "vanilla request complex accept encode type 2",
-			requestEncoder:                copierEntity,
+			requestEncoder:                copier{},
 			requestContentEncodingHeader:  " ",
 			requestAcceptEncodingHeader:   "repeate;q=1.0, repeate2;q=0.8, *;q=0.1",
-			responseDecoder:               repeaterEntity,
+			responseDecoder:               repeater{},
 			responseContentEncodingHeader: "repeate",
 			responseStatusCode:            returnedStatusCode,
 			upstreamHandler:               handlerWithoutEncoding,
 		}, {
 			testName:                      "vanilla request donothing response",
-			requestEncoder:                copierEntity,
+			requestEncoder:                copier{},
 			requestContentEncodingHeader:  "",
 			requestAcceptEncodingHeader:   "repeate",
-			responseDecoder:               repeaterEntity,
+			responseDecoder:               repeater{},
 			responseContentEncodingHeader: "repeate",
 			responseStatusCode:            returnedStatusCode,
 			upstreamHandler:               handlerWithIfedEncoding,
@@ -172,7 +169,8 @@ func (repeater) String() string {
 func (repeater) Encode(_ context.Context, to io.Writer, from []byte) error {
 	for i := 0; i < len(from); i++ {
 		for j := 0; j < 2; j++ {
-			if _, err := to.Write(from[i : i+1]); err != nil {
+			_, err := to.Write(from[i : i+1])
+			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
 		}
@@ -183,7 +181,8 @@ func (repeater) Encode(_ context.Context, to io.Writer, from []byte) error {
 
 func (repeater) Decode(_ context.Context, to io.Writer, from []byte) error {
 	for i := 0; i < len(from); i += 2 {
-		if _, err := to.Write(from[i : i+1]); err != nil {
+		_, err := to.Write(from[i : i+1])
+		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
 	}
@@ -198,7 +197,8 @@ func (repeater2) String() string {
 func (repeater2) Encode(_ context.Context, to io.Writer, from []byte) error {
 	for i := 0; i < len(from); i++ {
 		for j := 0; j < 4; j++ {
-			if _, err := to.Write(from[i : i+1]); err != nil {
+			_, err := to.Write(from[i : i+1])
+			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
 		}
@@ -214,7 +214,8 @@ func (copier) String() string {
 func (copier) Encode(_ context.Context, to io.Writer, from []byte) error {
 	for i := 0; i < len(from); i++ {
 		for j := 0; j < 1; j++ {
-			if _, err := to.Write(from[i : i+1]); err != nil {
+			_, err := to.Write(from[i : i+1])
+			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
 		}
@@ -231,11 +232,11 @@ func TestNew(upperTest *testing.T) {
 	upperTest.Parallel()
 
 	encoders := map[string]httpencoder.Encoder{
-		"repeate": repeaterEntity,
+		"repeate": repeater{},
 	}
 
 	decoders := map[string]httpencoder.Decoder{
-		"repeate": repeaterEntity,
+		"repeate": repeater{},
 	}
 
 	compress := httpencoder.New(encoders, decoders)
