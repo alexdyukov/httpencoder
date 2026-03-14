@@ -47,8 +47,8 @@ func BenchmarkWrappedEncodeDecode(b *testing.B) {
 	request := httptest.NewRequest(http.MethodPost, "/", body)
 	request.Header.Set("Accept-Encoding", "repeate")
 
-	encoders := map[string]httpencoder.Encoder{"repeate": repeaterEntity}
-	decoders := map[string]httpencoder.Decoder{"repeate": repeaterEntity}
+	encoders := map[string]httpencoder.Encoder{"repeate": repeater{}}
+	decoders := map[string]httpencoder.Decoder{"repeate": repeater{}}
 	compress := httpencoder.New(encoders, decoders)
 	handler := compress(handlerWithoutEncoding)
 
@@ -67,7 +67,7 @@ func BenchmarkWrappedDecode(b *testing.B) {
 	request := httptest.NewRequest(http.MethodPost, "/", body)
 
 	encoders := map[string]httpencoder.Encoder{}
-	decoders := map[string]httpencoder.Decoder{"repeate": repeaterEntity}
+	decoders := map[string]httpencoder.Decoder{"repeate": repeater{}}
 	compress := httpencoder.New(encoders, decoders)
 	handler := compress(handlerWithoutEncoding)
 
@@ -86,7 +86,7 @@ func BenchmarkWrappedEncode(b *testing.B) {
 	request := httptest.NewRequest(http.MethodPost, "/", body)
 	request.Header.Set("Accept-Encoding", "repeate")
 
-	encoders := map[string]httpencoder.Encoder{"repeate": repeaterEntity}
+	encoders := map[string]httpencoder.Encoder{"repeate": repeater{}}
 	decoders := map[string]httpencoder.Decoder{}
 	compress := httpencoder.New(encoders, decoders)
 	handler := compress(handlerWithoutEncoding)

@@ -18,7 +18,8 @@ func decode(bufferPool *sync.Pool, decoders map[string]Decoder, next http.Handle
 		bodyBuffer := bufferGet(bufferPool)
 		defer bufferPut(bufferPool, bodyBuffer)
 
-		if _, err := bodyBuffer.ReadFrom(request.Body); err != nil {
+		_, err := bodyBuffer.ReadFrom(request.Body)
+		if err != nil {
 			http.Error(responseWriter, "failed to read http request body", http.StatusBadRequest)
 
 			return
@@ -41,7 +42,8 @@ func decode(bufferPool *sync.Pool, decoders map[string]Decoder, next http.Handle
 			content := bodyBuffer.Bytes()
 			bodyBuffer.Reset()
 
-			if err := decoder.Decode(request.Context(), bodyBuffer, content); err != nil {
+			err := decoder.Decode(request.Context(), bodyBuffer, content)
+			if err != nil {
 				http.Error(responseWriter, err.Error(), http.StatusInternalServerError)
 
 				return
