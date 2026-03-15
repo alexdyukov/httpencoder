@@ -1,0 +1,32 @@
+name: release
+
+on:
+  push:
+    branches:
+    - master
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout git repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Install golang
+        uses: actions/setup-go@v6
+        with:
+          go-version: 'stable'
+          check-latest: true
+      - name: Run tests
+        run: go test -v -coverprofile coverage.out ./...
+      - name: Update coverage badge
+        uses: ncruces/go-coverage-report@main
+        with:
+          coverage-file: coverage.out
+          reuse-go: true
+          amend: true
+      - name: Tag latest release on github
+        run: bash .github/tag_release.sh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,6 +1,6 @@
 # httpencoder - golang net/http middleware for decode requests and encode responses based on Accept-Encoding and Content-Encoding headers
-[![GoDoc](https://godoc.org/github.com/alexdyukov/httpencoder?status.svg)](https://godoc.org/github.com/alexdyukov/httpencoder)
-[![Tests](https://github.com/alexdyukov/httpencoder/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/alexdyukov/httpencoder/actions/workflows/tests.yml?query=branch%3Amaster)
+[![Go Reference](https://pkg.go.dev/badge/image)](https://pkg.go.dev/github.com/alexdyukov/httpencoder)
+[![Go Coverage](https://github.com/alexdyukov/httpencoder/wiki/coverage.svg)](https://raw.githack.com/wiki/alexdyukov/httpencoder/coverage.html)
 
 ## Decoding client body
 
@@ -10,26 +10,25 @@ According to RFCs there is no 'Accept-Encoding' header at server side response. 
 
 There is a little overhead to compare to `if strings.Contains(request.Header.Get("Accept-Encoding"), "myencoding")`:
 ```
-$ go test -bench=. -benchmem -benchtime=10000000x
-warning: GOPATH set to GOROOT (/home/user/go) has no effect
+$ go version && go test -bench=. -benchmem -benchtime=10000000x
+go version go1.25.1 linux/amd64
 goos: linux
 goarch: amd64
 pkg: github.com/alexdyukov/httpencoder
 cpu: AMD Ryzen 7 8845H w/ Radeon 780M Graphics
-BenchmarkRaw-16                         10000000               200.7 ns/op           720 B/op          5 allocs/op
-BenchmarkIfedEncode-16                  10000000               489.1 ns/op          1456 B/op          9 allocs/op
-BenchmarkWrappedEncodeDecode-16         10000000              1083 ns/op            1569 B/op         15 allocs/op
-BenchmarkWrappedDecode-16               10000000               391.4 ns/op           752 B/op          7 allocs/op
-BenchmarkWrappedEncode-16               10000000               917.2 ns/op          1537 B/op         13 allocs/op
+BenchmarkRaw-16                         10000000               268.1 ns/op           720 B/op          5 allocs/op
+BenchmarkIfedEncode-16                  10000000               640.4 ns/op          1456 B/op          9 allocs/op
+BenchmarkWrappedEncodeDecode-16         10000000              1389 ns/op            1577 B/op         15 allocs/op
+BenchmarkWrappedDecode-16               10000000               571.0 ns/op           752 B/op          7 allocs/op
+BenchmarkWrappedEncode-16               10000000              1156 ns/op            1545 B/op         13 allocs/op
 PASS
-ok      github.com/alexdyukov/httpencoder       30.844s
+ok      github.com/alexdyukov/httpencoder       40.265s
 ``` 
 
 ## Examples
 
 Gzip encoder/decoder:
 ```
-
 type gzipper struct{}
 
 func (gzipper) Encode(ctx context.Context, to io.Writer, from []byte) (err error) {

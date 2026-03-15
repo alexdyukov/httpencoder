@@ -7,10 +7,17 @@ import (
 )
 
 type wrappedWriter struct {
-	http.ResponseWriter
+	internalResponseWriter http.ResponseWriter
+	bufferedResponse       *bytes.Buffer
+	statusCode             *int
+}
 
-	bufferedResponse *bytes.Buffer
-	statusCode       *int
+const (
+	defaultQuality = 1000
+)
+
+func (responseWriter *wrappedWriter) Header() http.Header {
+	return responseWriter.internalResponseWriter.Header()
 }
 
 //nolint:wrapcheck // there is simple buffered wrapper, no need to wrap
@@ -36,8 +43,8 @@ func encode(bufferPool *sync.Pool, encoders map[string]Encoder, next http.Handle
 			return
 		}
 
-		encoder, encodingType, okay := getPreferedEncoder(header, encoders)
-		if !okay {
+		encoder, encodingType := getPreferedEncoder(header, encoders)
+		if encoder == nil {
 			next.ServeHTTP(responseWriter, request)
 
 			return
@@ -49,9 +56,9 @@ func encode(bufferPool *sync.Pool, encoders map[string]Encoder, next http.Handle
 		defer bufferPut(bufferPool, upstreamResponse)
 
 		next.ServeHTTP(&wrappedWriter{
-			ResponseWriter:   responseWriter,
-			bufferedResponse: upstreamResponse,
-			statusCode:       &statusCode,
+			internalResponseWriter: responseWriter,
+			bufferedResponse:       upstreamResponse,
+			statusCode:             &statusCode,
 		}, request)
 
 		upstreamResponseBody := upstreamResponse.Bytes()
@@ -85,12 +92,11 @@ func encode(bufferPool *sync.Pool, encoders map[string]Encoder, next http.Handle
 }
 
 //nolint:ireturn // helper function
-func getPreferedEncoder(acceptEncodingHeader []byte, encoders map[string]Encoder) (Encoder, string, bool) {
+func getPreferedEncoder(acceptEncodingHeader []byte, encoders map[string]Encoder) (Encoder, string) {
 	var (
 		preferedEncodingFunc Encoder
 		preferedEncodingType string
 		preferedQuality      int
-		found                = false
 		encodingType         string
 		qualityValue         int
 	)
@@ -104,11 +110,10 @@ func getPreferedEncoder(acceptEncodingHeader []byte, encoders map[string]Encoder
 			preferedQuality = qualityValue
 			preferedEncodingFunc = encoder
 			preferedEncodingType = encodingType
-			found = true
 		}
 	}
 
-	return preferedEncodingFunc, preferedEncodingType, found
+	return preferedEncodingFunc, preferedEncodingType
 }
 
 func getNextAcceptEncodingType(header []byte, start int) (encodingType string, newPosition int) {

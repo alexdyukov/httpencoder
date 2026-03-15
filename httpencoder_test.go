@@ -158,6 +158,24 @@ var (
 			responseContentEncodingHeader: "repeate",
 			responseStatusCode:            returnedStatusCode,
 			upstreamHandler:               handlerWithIfedEncoding,
+		}, {
+			testName:                      "vanilla request vanilla response cause not found encoder",
+			requestEncoder:                copier{},
+			requestContentEncodingHeader:  "",
+			requestAcceptEncodingHeader:   "fake",
+			responseDecoder:               copier{},
+			responseContentEncodingHeader: "",
+			responseStatusCode:            returnedStatusCode,
+			upstreamHandler:               handlerWithoutEncoding,
+		}, {
+			testName:                      "unknown encoding request vanilla response",
+			requestEncoder:                copier{},
+			requestContentEncodingHeader:  "fake",
+			requestAcceptEncodingHeader:   "fake",
+			responseDecoder:               copier{},
+			responseContentEncodingHeader: "",
+			responseStatusCode:            returnedStatusCode,
+			upstreamHandler:               handlerWithoutEncoding,
 		},
 	}
 )
@@ -207,6 +225,17 @@ func (repeater2) Encode(_ context.Context, to io.Writer, from []byte) error {
 	return nil
 }
 
+func (repeater2) Decode(_ context.Context, to io.Writer, from []byte) error {
+	for i := 0; i < len(from); i += 4 {
+		_, err := to.Write(from[i : i+1])
+		if err != nil {
+			return fmt.Errorf("%w", err)
+		}
+	}
+
+	return nil
+}
+
 func (copier) String() string {
 	return "copier implementation"
 }
@@ -228,8 +257,8 @@ func (c copier) Decode(ctx context.Context, to io.Writer, from []byte) error {
 	return c.Encode(ctx, to, from)
 }
 
-func TestNew(upperTest *testing.T) {
-	upperTest.Parallel()
+func TestEncodeDecode(test *testing.T) {
+	test.Parallel()
 
 	encoders := map[string]httpencoder.Encoder{
 		"repeate": repeater{},
@@ -241,24 +270,25 @@ func TestNew(upperTest *testing.T) {
 
 	compress := httpencoder.New(encoders, decoders)
 
-	for _, test := range tests {
-		test := test
-		upperTest.Run(test.testName, func(t *testing.T) {
+	for _, iterTest := range tests {
+		iterTest := iterTest
+
+		test.Run(iterTest.testName, func(t *testing.T) {
 			t.Parallel()
 
-			netHTTPHandler := compress(test.upstreamHandler)
+			netHTTPHandler := compress(iterTest.upstreamHandler)
 
 			buffer := &bytes.Buffer{}
 
-			err := test.requestEncoder.Encode(context.Background(), buffer, []byte(testString))
+			err := iterTest.requestEncoder.Encode(context.Background(), buffer, []byte(testString))
 			if err != nil {
 				t.Fatal("cannot Compress test body: " + err.Error())
 			}
 
 			recorder := httptest.NewRecorder()
 			request := httptest.NewRequest(http.MethodPost, "/", buffer)
-			request.Header.Set("Content-Encoding", test.requestContentEncodingHeader)
-			request.Header.Set("Accept-Encoding", test.requestAcceptEncodingHeader)
+			request.Header.Set("Content-Encoding", iterTest.requestContentEncodingHeader)
+			request.Header.Set("Accept-Encoding", iterTest.requestAcceptEncodingHeader)
 
 			netHTTPHandler.ServeHTTP(recorder, request)
 
@@ -269,9 +299,9 @@ func TestNew(upperTest *testing.T) {
 				t.Fatalf("unexpected response status code, want %d but got %d", returnedStatusCode, response.StatusCode)
 			}
 
-			if response.Header.Get("Content-Encoding") != test.responseContentEncodingHeader {
+			if response.Header.Get("Content-Encoding") != iterTest.responseContentEncodingHeader {
 				strFormat := "invalid Content-Encoding header in response, want %s but got %s"
-				t.Fatalf(strFormat, test.responseContentEncodingHeader, response.Header.Get("Content-Encoding"))
+				t.Fatalf(strFormat, iterTest.responseContentEncodingHeader, response.Header.Get("Content-Encoding"))
 			}
 
 			buffer.Reset()
@@ -283,7 +313,7 @@ func TestNew(upperTest *testing.T) {
 
 			cleanedResponseBody := &bytes.Buffer{}
 
-			err = test.responseDecoder.Decode(context.Background(), cleanedResponseBody, buffer.Bytes())
+			err = iterTest.responseDecoder.Decode(context.Background(), cleanedResponseBody, buffer.Bytes())
 			if err != nil {
 				t.Fatal("cannot Decompress test body with error: " + err.Error())
 			}
