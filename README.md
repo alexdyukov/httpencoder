@@ -75,6 +75,30 @@ func (gzipper) Decode(ctx context.Context, to io.Writer, from []byte) (err error
 	return nil
 }
 ```
+or cheap version:
+```
+type gzipper struct{}
+
+func (gzipper) Encode(ctx context.Context, to io.Writer, from []byte) (err error) {
+	_, err := gzip.NewWriter(to).Write(from)
+	if err != nil {
+		return err
+	}
+
+	return gzipWriter.Flush()
+}
+
+func (gzipper) Decode(ctx context.Context, to io.Writer, from []byte) (err error) {
+	gzipReader, err := gzip.NewReader(bytes.NewReader(from))
+	if err != nil {
+		return err
+	}
+
+	_, err = io.Copy(to, gzipReader)
+
+	return err
+}
+```
 
 ## License
 
