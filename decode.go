@@ -34,7 +34,11 @@ func decode(bufferPool *sync.Pool, decoders map[string]Decoder, next http.Handle
 
 			decoder, exist := decoders[string(header[start:iter])]
 			if !exist {
-				http.Error(responseWriter, "unsupported Content-Encoding", http.StatusUnsupportedMediaType)
+				// not found decoder, pass it down without decoding
+				request.Body = io.NopCloser(bodyBuffer)
+				request.Header.Set("Content-Encoding", string(header[start:]))
+
+				next.ServeHTTP(responseWriter, request)
 
 				return
 			}

@@ -23,10 +23,6 @@ type (
 	}
 )
 
-const (
-	defaultQuality = 1000
-)
-
 // New returns net/http middleware for auto decode http.Request
 // and/or auto encode http.ResponseWriter body based on provided Encoders/Decoders.
 func New(encoders map[string]Encoder, decoders map[string]Decoder) func(next http.Handler) http.Handler {
@@ -37,15 +33,9 @@ func New(encoders map[string]Encoder, decoders map[string]Decoder) func(next htt
 	}
 
 	return func(next http.Handler) http.Handler {
-		if len(decoders) != 0 {
-			next = decode(bufferPool, decoders, next)
-		}
+		next = decode(bufferPool, decoders, next)
 
-		if len(encoders) != 0 {
-			next = encode(bufferPool, encoders, next)
-		}
-
-		return next
+		return encode(bufferPool, encoders, next)
 	}
 }
 
